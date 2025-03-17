@@ -2,12 +2,20 @@ const express = require("express");
 const { centralDb } = require("../config/centralDb");
 const authMiddleware = require("../middleware/authMiddleware");
 const jwt = require("jsonwebtoken");
+const { status } = require("express/lib/response");
 const router = express.Router();
+
+const inventory_status = {
+  in_stock: 1,
+  low_stock: 2,
+  out_of_stock: 3
+}
+
 
 // Get Inventory
 router.get("/", async (req, res) => {
   const token = req.cookies.authToken;
-  console.log(token);
+
   if (!token) {
     return res
       .status(401)
@@ -18,8 +26,12 @@ router.get("/", async (req, res) => {
     // Get the businessId either from the JWT token or from the users table
     const businessId = decoded.businessId;
     // Fetch inventory for the specific business
+    // Make sure to use business_id instead of user_id
     const [inventory] = await centralDb.query(
-      "SELECT * FROM inventory WHERE business_id = ?", // Make sure to use business_id instead of user_id
+      `SELECT a.*, b.name as inventory_name, b.description as inventory_status
+      FROM inventory as a
+      LEFT JOIN inventory_status as b ON a.status_id = b.id
+      WHERE business_id = ? `, 
       [businessId]
     );
 
@@ -81,11 +93,11 @@ router.post("/", async (req, res) => {
     const batchNumber = `BN-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
 
     // Determine stock status based on quantity
-    const status = quantity > 0 ? "In Stock" : "Out of Stock";
+    const status_id = quantity > 0 ? inventory_status.in_stock : inventory_status.out_of_stock;
 
     // Add item to inventory for the specific business
     await centralDb.query(
-      "INSERT INTO inventory (business_id, user_id, ingredient_name, category, quantity, unit, cost, location, batch_number, expiration_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO inventory (business_id, user_id, ingredient_name, category, quantity, unit, cost, location, batch_number, expiration_date, status_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       [
         businessId,
         userId,
@@ -102,7 +114,7 @@ router.post("/", async (req, res) => {
               .slice(0, 19)
               .replace("T", " ")
           : null,
-        status,
+          status_id,
       ]
     );
 
