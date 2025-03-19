@@ -18,15 +18,16 @@ cron.schedule('* * * * *', async () => {
 
         let sql = `
             SELECT 
-                a.id, 
-                a.value, 
                 a.unit_id,
                 b.id as inventory_id,
-                a.status_id as new_status_id
+                MAX(a.status_id) as new_status_id 
             from inventory_settings as a
             inner join inventory as b on a.unit_id = b.unit_id and b.quantity <= a.value
-            where a.active = ?
-            and b.status_updated_at is NULL
+            where a.active = 1
+            and b.status_updated_at is null
+            group by 
+                a.unit_id,
+                b.id
         `;
 
         let [results, fields] = await db.execute(sql, [1]);
