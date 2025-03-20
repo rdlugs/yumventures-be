@@ -1,4 +1,6 @@
 const express = require("express");
+const http = require('http');
+
 const initializeSuperadminDb = require("./superadmin/config/initSchema");
 const tenantRoutes = require("./superadmin/routes/superadminRoutes");
 const authRoutes = require("./superadmin/routes/authRoutes");
@@ -19,11 +21,22 @@ const browseRoutes = require("./customer/routes/browseRoutes");
 dotenv.config();
 
 const HOST = process.env.APP_HOST || "http://localhost";
-const PORT = process.env.APP_PORT || 3000;
+const PORT = process.env.APP_PORT || 5000;
 
 const app = express();
-app.use(express.json());
+const io_server = http.createServer(app);
+const { Server } = require('socket.io');
 
+const io = new Server(io_server, {
+  cors: {
+    origin: ["http://localhost:5173"], // Allow React frontend
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
+
+app.use(express.json());
 app.use(cookieParser());
 
 app.use(
@@ -84,7 +97,23 @@ app.use("/browse", browseRoutes);
 app.use("/pos", posRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-const server = app.listen(PORT, () => {
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+});
+
+io.on('connection', (socket) => {
+
+  // Example notification: Send a message after 5 seconds
+  // setInterval(() => {
+    socket.emit('notification', { message: 'This is a notification!' });
+  // }, 5000);
+
+  socket.on('disconnect', () => {
+    console.log('A user disconnected');
+  });
+});
+
+const server = io_server.listen(PORT, () => {
   console.log(`Server running at ${HOST}:${PORT}`);
 });
 
