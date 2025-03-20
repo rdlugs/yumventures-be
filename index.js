@@ -18,6 +18,9 @@ const dashboardRoutes = require("./client/routes/dashboardRoutes");
 const browseRoutes = require("./customer/routes/browseRoutes");
 dotenv.config();
 
+const HOST = process.env.APP_HOST || "http://localhost";
+const PORT = process.env.APP_PORT || 3000;
+
 const app = express();
 app.use(express.json());
 
@@ -37,23 +40,6 @@ app.use(
   })
 );
 
-{
-  /*
-  app.use(
-  helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "https://trusted-cdn.com"],
-        styleSrc: ["'self'", "https://trusted-cdn.com"],
-        imgSrc: ["'self'", "data:", "http://localhost:3000"],
-      },
-    },
-  })
-);
-  */
-}
-
 const rateLimit = require("express-rate-limit");
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -69,20 +55,6 @@ app.use((err, req, res, next) => {
     .send({ message: "Something went wrong! Please try again later." });
 });
 
-/*const winston = require("winston");
-const logger = winston.createLogger({
-    level: "info",
-    transports: [
-      new winston.transports.Console({ format: winston.format.simple() }),
-      new winston.transports.File({ filename: "app.log" }),
-    ],
-  });
-  
-  app.use((req, res, next) => {
-    logger.info(`Request: ${req.method} ${req.url}`);
-    next();
-  });
-*/
 // Initialize the superadmin database and roles
 initializeSuperadminDb()
   .then(() => {
@@ -112,9 +84,8 @@ app.use("/browse", browseRoutes);
 app.use("/pos", posRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`);
+  console.log(`Server running at ${HOST}:${PORT}`);
 });
 
 process.on("SIGTERM", () => {
