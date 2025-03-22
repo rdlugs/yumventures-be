@@ -126,9 +126,11 @@ router.post("/login", async (req, res) => {
       maxAge: 3600000, // 1 hour expiration (same as your JWT expiration)
       sameSite: "Strict", // CSRF protection
     });
+
     res.status(200).json({
       message: "Login successful.",
     });
+
   } catch (err) {
     console.error("Error logging in:", err.message);
     res.status(500).json({ message: "Failed to log in." });
@@ -149,6 +151,18 @@ router.post("/logout", (req, res) => {
   } catch (err) {
     console.error("Error during logout:", err.message);
     res.status(500).json({ message: "Failed to log out." });
+  }
+});
+
+router.get("/me", (req, res) => {
+  const token = req.cookies.authToken;
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const user = jwt.verify(token, process.env.JWT_SECRET);
+    res.json(user);
+  } catch (err) {
+    res.status(403).json({ message: "Invalid token" });
   }
 });
 

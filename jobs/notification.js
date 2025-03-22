@@ -11,3 +11,25 @@ const connection = mysql.createPool({
 });
 
 const db = connection.promise();
+
+const getNotifications = async (business_id) => {
+    try {
+        let sql = `
+            SELECT * FROM notifications
+            WHERE business_id = ?
+            ORDER BY created_at DESC
+            LIMIT 10
+        `;
+
+        let [results] = await db.execute(sql, [business_id]);
+        
+        return results;
+
+    } catch (error) {
+        console.error("Error get notifications:", error);
+        return []
+    }
+}
+
+
+module.exports = { getNotifications };

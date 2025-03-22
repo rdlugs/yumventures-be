@@ -34,14 +34,25 @@ const checkAndUpdateInventory = async () => {
         let sql = `
             SELECT 
                 a.unit_id,
-                b.id as inventory_id,
+                b.id AS inventory_id,
                 b.business_id,
-                MAX(a.status_id) as new_status_id 
+                a.status_id AS new_status_id,
+                c.description AS new_status_description,
+                c.name AS new_status_code,
+                b.ingredient_name,
+                b.batch_number
             FROM inventory_settings AS a
             INNER JOIN inventory AS b ON a.unit_id = b.unit_id AND b.quantity <= a.value
+            INNER JOIN inventory_status AS c ON c.id = a.status_id
             WHERE a.active = 1
             AND b.status_updated_at IS NULL
-            GROUP BY a.unit_id, b.id, b.business_id
+            AND a.status_id = (
+                SELECT MAX(status_id) 
+                FROM inventory_settings AS sub_a
+                WHERE sub_a.unit_id = a.unit_id
+                and b.quantity <= sub_a.value
+                AND sub_a.active = 1
+            )
         `;
 
         let [results] = await db.execute(sql);
@@ -53,7 +64,6 @@ const checkAndUpdateInventory = async () => {
                     SET status_id = ?, status_updated_at = ? 
                     WHERE id = ?
                 `;
-
                 let [updatedRows] = await db.execute(updateQuery, [
                     item.new_status_id, 
                     moment().format("YYYY-MM-DD HH:mm:ss"), 
@@ -65,16 +75,20 @@ const checkAndUpdateInventory = async () => {
                     VALUES(?,?)
                 `
                 await db.execute(add_notif, [item.business_id, JSON.stringify({
-                    title: 'Item Status',
-                    code: 'item_status',
+                    title: item.new_status_description,
+                    code: item.new_status_code,
                     data: item
                 })]);
                 
                 console.log(`Updated rows: ${updatedRows?.affectedRows ?? 0}`);
             }
         }
+
+        return results.length;
+
     } catch (error) {
         console.error("Error updating inventory:", error);
+        return false;
     }
 };
 
@@ -83,7 +97,7 @@ const checkInventoryNotif = async () => {
     
     if(expiredItems.length) {
         
-        console.log(`Expired Points: ${expiredItems.length}`);
+        console.log(`Expired Items: ${expiredItems.length}`);
 
         let ids = expiredItems.map(item => `'${item.id}'`).join(',')
 
@@ -100,12 +114,14 @@ const checkInventoryNotif = async () => {
                 VALUES (?, ?)
             `
             db.execute(add_notif, [item.business_id, JSON.stringify({ 
-                title: 'Expired Points',
-                code: 'expired_points',
-                data: item  
+                title: 'Expired Items',
+                code: 'expired_items',
+                data: item
             })]);
         }
     }
+
+    return expiredItems.length;
 }
 
 module.exports = { checkAndUpdateInventory, checkInventoryNotif };

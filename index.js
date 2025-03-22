@@ -19,6 +19,7 @@ const posRoutes = require("./client/routes/posRoutes");
 const customerRoutes = require("./customer/routes/customerRoutes");
 const dashboardRoutes = require("./client/routes/dashboardRoutes");
 const browseRoutes = require("./customer/routes/browseRoutes");
+const notificationRoutes = require('./client/routes/notificationRoutes');
 
 dotenv.config();
 
@@ -96,21 +97,32 @@ app.use("/menu", menuRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/browse", browseRoutes);
 app.use("/pos", posRoutes);
+app.use('/notification', notificationRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// io.on('connection', (socket) => {
+io.on('connection', (socket) => {
 
-//   const { checkInventoryNotif } = require('./jobs/inventory');
+  let { getNotifications } = require('./jobs/notification');
 
-//   // Example notification: Send a message after 5 seconds
-//   setInterval(() => {
-//     checkInventoryNotif(socket);
-//   }, 5000);
+  socket.on('user_connected', async (user) => {
 
-//   socket.on('disconnect', () => {
-//     console.log('A user disconnected');
-//   });
-// });
+    if(user?.businessId) {
+      setInterval(async () => {
+
+        let notifications = await getNotifications(user?.businessId);
+  
+        if(notifications.length) {
+          socket.emit("notification", { notifications: notifications });
+        }
+        socket.emit("done_loading", { });
+      }, 5000);
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log('A user disconnected: ', socket.id);
+  });
+});
 
 const server = io_server.listen(PORT, () => {
   console.log(`Server running at ${HOST}:${PORT}`);

@@ -4,7 +4,7 @@ const cron = require('node-cron');
 
 const { checkAndUpdateInventory, checkInventoryNotif } = require("../jobs/inventory");
 
-// run every 5 seconds
+// run every 5 seconds (adjust if needed)
 cron.schedule('*/5 * * * * *', async () => {
     try {
         await checkAndUpdateInventory();
